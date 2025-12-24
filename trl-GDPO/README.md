@@ -33,3 +33,7 @@ bash run_gsm8k_gdpo.sh # For GDPO Training
 bash run_gsm8k_grpo.sh # For GRPO Training
 ```
 FYI. training Qwen2.5-1.5B-Instruct on a single Node with 8xA100 takes about an hour to finish.
+
+
+## GDPO Implementation details
+Please see line 1222 in trl-0.18.0-gdpo/trl/trainer/grpo_trainer.py
