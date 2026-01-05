@@ -1,4 +1,8 @@
-# GDPO Implementation based on verl
+# GDPO vs. GRPO on tool calling RL training (GDPO Implementation based on verl)
+
+<h1 align="center"> 
+    <img src="../imgs/tool_rl_gdpo.png">
+</h1>
 
 ## Installation
 Please install torch, vllm and ray according to your own environment configuration.
@@ -13,6 +17,7 @@ pip install ray
 Please further install the verl in the current project and flash attention.
 ```
 # verl
+cd verl
 pip install -e .
 
 # flash attention 2
@@ -32,7 +37,6 @@ Before starting, configure your API keys and Hugging Face cache path:
 export WANDB_API_KEY="Your API KEY"
 export HF_TOKEN="Your API KEY"
 export HF_HOME="YOU HF CACHE ADDRESS"
-
 ```
 For GRPO and GDPO training, please specify the configuration in train_gdpo.sh and train_grpo.sh
 ```
