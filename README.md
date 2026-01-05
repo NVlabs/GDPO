@@ -61,6 +61,111 @@ Training is conducted on the GSM8K dataset, where each example consists of a mat
 
 We train Qwen2.5-1.5B-Instruct with GDPO and GRPO using trl for 1 epoch. Check [trl-GDPO](./trl-GDPO) for detailed implementation of GDPO based on TRL and how to reprodcue the above result.
 
+## GDPO is a straighforward drop-in replacement for GRPO
+
+### trl modification
+#### Original trl GRPO Implementation
+```python
+    # line 1254 in gdpo_nvlab/trl-GDPO/trl-0.18.0-gdpo/trl/trainer/grpo_trainer.py
+    # Gather the reward per function: this part is crucial, because the rewards are normalized per group and the
+    # completions may be distributed across processes
+    rewards_per_func = gather(rewards_per_func)
+    rewards = (rewards_per_func * self.reward_weights.to(device).unsqueeze(0)).nansum(dim=1)
+
+    # Compute grouped-wise rewards
+    mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
+    std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
+    is_std_zero = torch.isclose(std_grouped_rewards, torch.zeros_like(std_grouped_rewards))
+
+    # Normalize the rewards to compute the advantages
+    mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+    std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+    advantages = rewards - mean_grouped_rewards
+    if self.scale_rewards:
+        advantages = advantages / (std_grouped_rewards + 1e-4)
+```
+#### trl GDPO Implementation
+```python
+    # line 1222 in gdpo_nvlab/trl-GDPO/trl-0.18.0-gdpo/trl/trainer/grpo_trainer.py
+    # Gather the reward per function: this part is crucial, because the rewards are normalized per group and the
+    # completions may be distributed across processes
+    rewards_per_func = gather(rewards_per_func)
+    ## Make sure every reward contain no nan value
+    rewards_per_func_filter = torch.nan_to_num(rewards_per_func)
+
+    all_reward_advantage = []
+    ## Calculate the mean and std of each reward group-wise separately
+    for i in range(len(self.reward_weights)):
+        reward_i = rewards_per_func_filter[:,i]
+        each_reward_mean_grouped = reward_i.view(-1, self.num_generations).mean(dim=1)
+        each_reward_std_grouped = reward_i.view(-1, self.num_generations).std(dim=1)
+
+        each_reward_mean_grouped = each_reward_mean_grouped.repeat_interleave(self.num_generations, dim=0)
+        each_reward_std_grouped = each_reward_std_grouped.repeat_interleave(self.num_generations, dim=0)
+        each_reward_advantage = reward_i - each_reward_mean_grouped
+        each_reward_advantage = each_reward_advantage / (each_reward_std_grouped + 1e-4)
+        all_reward_advantage.append(each_reward_advantage)
+
+    combined_reward_advantage = torch.stack(all_reward_advantage, dim=1)
+    pre_bn_advantages = (combined_reward_advantage * self.reward_weights.to(device).unsqueeze(0)).nansum(dim=1)
+
+    ## compute batch-wise mean and std
+    bn_advantages_mean = pre_bn_advantages.mean()
+    bn_advantages_std = pre_bn_advantages.std()
+
+    advantages = (pre_bn_advantages - bn_advantages_mean) / (bn_advantages_std + 1e-4)
+
+```
+
+### verl modification
+#### Original verl GRPO Implementation
+```python
+    ## line 148 in verl-GDPO/verl/trainer/ppo/ray_trainer.py
+    elif adv_estimator == 'grpo':
+        token_level_rewards = data.batch['token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                        eos_mask=response_mask,
+                                                                        index=index)
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
+```
+#### verl GDPO Implementation
+```python
+    ## line 175 in verl-GDPO/verl/trainer/ppo/ray_trainer.py
+    token_level_scores_correctness = data.batch['token_level_scores_correctness']
+    token_level_scores_format = data.batch['token_level_scores_format']
+    
+    # shared variables 
+    index = data.non_tensor_batch['uid']
+    responses = data.batch['responses']
+    response_length = responses.size(-1)
+    attention_mask = data.batch['attention_mask']
+    response_mask = attention_mask[:, -response_length:]
+
+    ## handle correctness first
+    correctness_normalized_score, _ = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_scores_correctness,
+                                                                    eos_mask=response_mask,
+                                                                    index=index)
+
+    ## handle format now
+    format_normalized_score, _ = core_algos.compute_grpo_outcome_advantage(token_level_rewards=token_level_scores_format,
+                                                                    eos_mask=response_mask,
+                                                                    index=index) 
+    
+    new_advantage = correctness_normalized_score + format_normalized_score
+
+    advantages = masked_whiten(new_advantage, response_mask) * response_mask
+
+    data.batch['advantages'] = advantages
+    data.batch['returns'] = advantages
+
+```
+
 
 ## Citation
 If you find GDPO useful, please star and cite it:

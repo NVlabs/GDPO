@@ -176,7 +176,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
         ## only handle two reward now
         token_level_scores_correctness = data.batch['token_level_scores_correctness']
         token_level_scores_format = data.batch['token_level_scores_format']
-        token_level_scores_length = data.batch['token_level_scores_length']
+        
         # shared variables 
         index = data.non_tensor_batch['uid']
         responses = data.batch['responses']
