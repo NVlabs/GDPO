@@ -1,7 +1,7 @@
 # GDPO Implementation based on verl
 
 ## Installation
-Please install torch, vllm and ray according to your own environment configuration. We provide a configuration example adapted from TinyZero in the following:
+Please install torch, vllm and ray according to your own environment configuration.
 ```
 # install torch
 pip install torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
