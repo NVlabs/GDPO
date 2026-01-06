@@ -18,7 +18,7 @@ In this repo, we provide implementation of GDPO based on [VERL](https://github.c
 
 We also include easy-to-use, slurm-free training scripts that enable the community to quickly validate GDPO’s effectiveness over GRPO on tool calling and math reasoning tasks. Each run can be completed in approximately 1 hour on a single node with 8×A100 GPUs, or around 2.5 hours on a single A100 GPU.
 
-## 🚀 Run GDPO with vel to improve two-reward RL training for tool calling.
+## 🚀 Run GDPO with verl to improve two-reward RL training for tool calling.
 <h1 align="center"> 
     <img src="./imgs/tool_rl_gdpo.png">
 </h1>
