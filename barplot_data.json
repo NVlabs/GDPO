@@ -1,0 +1,78 @@
+[
+  {
+    "dataset": "AIME-24",
+    "model1": {
+      "name": "DeepSeek-R1-7B",
+      "value": 8.8,
+      "color": "#f093fb",
+      "text": "Acc=55.4%"
+    },
+    "model2": {
+      "name": "DLER-R1-7B",
+      "value": 1.3,
+      "color": "#4facfe",
+      "text": "Acc=55.7%"
+    }
+  },
+  {
+    "dataset": "MATH",
+    "model1": {
+      "name": "DeepSeek-R1-7B",
+      "value": 0.9,
+      "color": "#f093fb",
+      "text": "Acc=93.6%"
+    },
+    "model2": {
+      "name": "DLER-R1-7B",
+      "value": 0.1,
+      "color": "#4facfe",
+      "text": "Acc=94.2%"
+    }
+  },
+  {
+    "dataset": "AMC",
+    "model1": {
+      "name": "DeepSeek-R1-7B",
+      "value": 3.4,
+      "color": "#f093fb",
+      "text": "Acc=82.9%"
+    },
+    "model2": {
+      "name": "DLER-R1-7B",
+      "value": 0.5,
+      "color": "#4facfe",
+      "text": "Acc=84.4%"
+    }
+  },
+  {
+    "dataset": "Minerva",
+    "model1": {
+      "name": "DeepSeek-R1-7B",
+      "value": 1.2,
+      "color": "#f093fb",
+      "text": "Acc=49.8%"
+    },
+    "model2": {
+      "name": "DLER-R1-7B",
+      "value": 0.2,
+      "color": "#4facfe",
+      "text": "Acc=53.9%"
+    }
+  },
+  {
+    "dataset": "Olympiad",
+    "model1": {
+      "name": "DeepSeek-R1-7B",
+      "value": 2.2,
+      "color": "#f093fb",
+      "text": "Acc=58.2%"
+    },
+    "model2": {
+      "name": "DLER-R1-7B",
+      "value": 0.2,
+      "color": "#4facfe",
+      "text": "Acc=60.5%"
+    }
+  }
+]
+

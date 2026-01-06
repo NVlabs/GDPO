@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLIMB Algorithm Visualization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for transitions and elements */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            background-image: linear-gradient(to bottom right, #0f172a, #1e293b);
+            color: #cbd5e1;
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+        .data-point {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: absolute;
+            transition: all 1s ease-in-out, opacity 0.5s ease-in-out; /* Added opacity transition */
+            background-color: #64748b;
+            box-shadow: 0 0 5px rgba(100, 116, 139, 0.5);
+            z-index: 10; /* Ensure points are above placeholders */
+        }
+        .data-point.faded { /* Style for points left in embedding space */
+            opacity: 0.3;
+            box-shadow: none;
+        }
+        .mixture-config {
+            border: 1px solid #334155;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background-color: #1e293b;
+            transition: all 0.5s ease;
+            opacity: 1;
+        }
+        .mixture-config.pruned {
+            opacity: 0.4;
+            background-color: #7f1d1d;
+            border-color: #ef4444;
+        }
+         .mixture-bar-container {
+            display: flex;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 4px;
+            background-color: #334155;
+        }
+        .mixture-bar {
+            height: 100%;
+            transition: background-color 0.3s ease;
+        }
+        .arrow {
+            position: relative;
+            display: inline-block;
+            margin: 0 10px; /* 增加边距使箭头有更多空间 */
+            color: #4b5563; /* 更暗的箭头颜色 */
+            flex-shrink: 0; /* Prevent arrow from shrinking */
+            width: 40px; /* 设置固定宽度 */
+            text-align: center;
+        }
+        .arrow::after {
+            content: '→';
+            font-size: 2rem; /* 增大箭头 */
+            line-height: 1;
+            font-weight: bold; /* 加粗 */
+            text-shadow: 0 0 5px rgba(148, 163, 184, 0.3); /* 添加轻微的发光效果 */
+        }
+        .arrow-label {
+            position: absolute;
+            top: -2rem;
+            font-size: 1rem; /* 增大字体 */
+            color: #e2e8f0; /* 更亮的颜色 */
+            width: 100%;
+            text-align: center;
+            font-weight: 500; /* 设置字体粗细 */
+            letter-spacing: 0.5px; /* 添加字母间距 */
+            text-shadow: 0 0 8px rgba(15, 23, 42, 0.7); /* 添加文字阴影增加可读性 */
+        }
+        .stage-box {
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+         #predictor-graph {
+            width: 100%;
+            height: 150px;
+            background-color: #334155;
+            border: 1px solid #475569;
+            border-radius: 0.5rem;
+            position: relative;
+            overflow: hidden;
+         }
+        .predictor-point {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            position: absolute;
+            transition: background-color 0.5s ease;
+            opacity: 0.8;
+        }
+         .control-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            background-color: #3b82f6;
+            color: white;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease, opacity 0.3s ease;
+            margin-right: 0.5rem;
+        }
+        .control-button:hover {
+            background-color: #2563eb;
+        }
+         .control-button:disabled {
+            background-color: #475569;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .info-text {
+            margin-top: 0.5rem;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.875rem;
+        }
+        .placeholder-text {
+             color: #64748b;
+             font-size: 0.875rem;
+        }
+        .embedding-area { /* Common style for embedding/clustering areas */
+             width: 12rem; /* w-48 */
+             height: 12rem; /* h-48 */
+             position: relative;
+             border-radius: 0.375rem; /* rounded-md */
+             background-color: rgba(15, 23, 42, 0.5);
+             border: 1px dashed #334155;
+             flex-shrink: 0; /* Prevent shrinking */
+             overflow: hidden; /* Hide points moving outside */
+        }
+        .config-label-text {
+             color: #e2e8f0;
+        }
+        .score-text { /* For individual scores in the list */
+             color: #f1f5f9;
+             font-weight: 500;
+        }
+        .optimal-box-bg {
+            background-color: rgba(5, 150, 105, 0.1);
+            border: 1px solid #059669;
+        }
+        .optimal-text-color {
+             color: #a7f3d0;
+        }
+        /* Style for the score display list */
+        #score-display-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+        }
+        #score-display-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 1rem; /* Larger font */
+            border-bottom: 1px solid #334155; /* Separator */
+        }
+         #score-display-list li:last-child {
+            border-bottom: none;
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <h1 class="text-2xl font-bold mb-6 text-center text-slate-100">CLIMB Algorithm Visualization</h1>
+
+    <div class="flex justify-center mb-6 space-x-2">
+        <button id="start-button" class="control-button">Start Automatic Play</button>
+        <button id="reset-button" class="control-button">Reset</button>
+    </div>
+    <p id="status-text" class="text-center text-lg font-medium text-slate-300 mb-6">Press Start to begin the visualization.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="stage-box md:col-span-3">
+            <h2 class="text-xl font-semibold mb-3 text-slate-200">Stage 1: Data Preprocessing</h2>
+            <div class="flex flex-wrap items-center justify-center md:justify-around space-y-4 md:space-y-0 md:space-x-2">
+                <div class="text-center p-2" style="position: relative; width: 12rem; height: 12rem; border-radius: 0.375rem; background-color: rgba(15, 23, 42, 0.5); border: 1px dashed #334155; display: flex; flex-direction: column; justify-content: center; align-items: center; flex-shrink: 0;">
+                    <div class="text-4xl mb-2">📄📄📄</div>
+                    <div style="font-size: 0.7rem; opacity: 0.7;" class="mb-2">
+                        <div>news.txt</div>
+                        <div>social_media.json</div>
+                        <div>blogs.csv</div>
+                        <div>wikipedia.xml</div>
+                        <div>books.txt</div>
+                        <div>...</div>
+                    </div>
+                    <p class="text-slate-300 text-sm">Internet-scale Texts</p>
+                </div>
+                <div class="arrow self-center">
+                    <span class="arrow-label">embedding</span>
+                </div>
+                <div class="text-center embedding-area" id="embedding-space">
+                    <p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Embedding Space</p>
+                </div>
+                <div class="arrow self-center">
+                    <span class="arrow-label">clustering</span>
+                </div>
+                <div class="text-center embedding-area" id="clustering-space">
+                    <p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Clustering Space</p>
+                </div>
+            </div>
+             <p id="stage1-info" class="info-text text-center mt-4"></p>
+        </div>
+
+        <div class="stage-box md:col-span-2">
+            <h2 class="text-xl font-semibold mb-3 text-slate-200">Stage 2: Mixture Bootstrapping (Iteration <span id="iteration-count">0</span>)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <h3 class="text-lg font-medium mb-2 text-slate-300">Data Mixture Weights</h3>
+                    <div id="mixture-configs" class="h-96 overflow-y-auto pr-2">
+                        <p class="placeholder-text">Data mixture weights will appear here.</p>
+                    </div>
+                </div>
+                <div class="bg-slate-700 rounded-md p-4 flex flex-col h-96">
+                     <h3 class="text-lg font-medium mb-2 text-slate-300 text-center">Proxy Model Scores</h3>
+                     <div id="proxy-training-status" class="text-center mb-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-brain-circuit text-blue-400 mx-auto mb-1"><path d="M12 5a3 3 0 1 0-5.997.004A3 3 0 0 0 12 5Z"/><path d="M12 19a3 3 0 1 0-5.997-.004A3 3 0 0 0 12 19Z"/><path d="M17 12a3 3 0 1 0-.004 5.997A3 3 0 0 0 17 12Z"/><path d="M17 12a3 3 0 1 0-.004-5.997A3 3 0 0 0 17 12Z"/><path d="M12 5a3 3 0 1 0 5.997.004A3 3 0 0 0 12 5Z"/><path d="M12 19a3 3 0 1 0 5.997-.004A3 3 0 0 0 12 19Z"/><path d="M6 5.34c0-1.1.9-2 2-2h1.34"/><path d="M6 18.66c0 1.1.9 2 2 2h1.34"/><path d="M18 5.34c0-1.1-.9-2-2-2h-1.34"/><path d="M18 18.66c0 1.1-.9 2-2 2h-1.34"/><path d="M12 8v8"/><path d="M17 14.66V19"/><path d="M17 9.34V5"/><path d="m14.66 17H19"/><path d="m9.34 17H5"/><path d="m14.66 7H19"/><path d="m9.34 7H5"/></svg>
+                         <p id="proxy-status" class="text-base font-medium text-slate-300">Awaiting mixture training...</p>
+                     </div>
+                     <div class="flex-grow overflow-y-auto pr-1">
+                         <ul id="score-display-list">
+                             </ul>
+                     </div>
+                </div>
+            </div>
+             <p id="stage2-info" class="info-text"></p>
+        </div>
+
+        <div class="stage-box">
+            <h2 class="text-xl font-semibold mb-3 text-slate-200">Predictor</h2>
+            <div class="mb-3 p-3 bg-slate-800 rounded-md border border-slate-700">
+                <p class="text-sm text-slate-300 mb-2"><span class="font-bold text-blue-400">Input:</span> Data mixture weight vector [w₁, w₂, ..., w₆]</p>
+                <p class="text-sm text-slate-300 mb-2"><span class="font-bold text-green-400">Output:</span> Predicted model performance score (0-100%)</p>
+                <p class="text-sm text-slate-300"><span class="font-bold text-purple-400">Training data:</span> (Weight,Score) data points collected from previous iterations</p>
+            </div>
+            <div class="grid grid-cols-5 gap-2 mb-3">
+                <div class="col-span-2 bg-slate-800 rounded-md p-2 flex flex-col items-center">
+                    <p class="text-xs text-slate-400 mb-1">Training data</p>
+                    <div class="w-full h-24 bg-slate-700 rounded-md relative overflow-hidden">
+                        <div class="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+                            (weight, score) point pairs
+                        </div>
+                        <div id="predictor-data-points" class="absolute inset-0"></div>
+                    </div>
+                </div>
+                <div class="col-span-1 flex items-center justify-center">
+                    <div class="bg-slate-800 rounded-full w-10 h-10 flex items-center justify-center">
+                        <span class="text-blue-400">→</span>
+                    </div>
+                </div>
+                <div class="col-span-2 bg-slate-800 rounded-md p-2 flex flex-col items-center">
+                    <p class="text-xs text-slate-400 mb-1">Regression model</p>
+                    <div class="w-full h-24 bg-slate-700 rounded-md flex items-center justify-center p-2">
+                        <svg id="regression-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-purple-400">
+                            <path d="M2 12h20M2 16h20M2 8h20M5 4v16M19 4v16"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div id="predictor-graph" class="mb-2">
+                <p class="absolute inset-0 flex items-center justify-center placeholder-text">Performance Prediction Trend</p>
+            </div>
+            <div class="bg-slate-800 rounded-md p-2 border-l-4 border-yellow-500">
+                <p class="text-sm font-medium text-slate-300">Stage 3: Predictor used to search for optimal configuration in large number of possible mixture configurations</p>
+            </div>
+            <p id="predictor-info" class="info-text"></p>
+        </div>
+
+         <div class="stage-box md:col-span-3">
+            <h2 class="text-xl font-semibold mb-3 text-slate-200">Stage 3: Optimal Mixture Weights</h2>
+            <div class="mb-3 p-3 bg-slate-800 rounded-md">
+                <p class="text-sm text-slate-300">Using trained predictor to quickly search large number of possible mixture configuration space and find configuration predicted to yield highest score without actual training all possible combinations.</p>
+            </div>
+            <div id="optimal-mixture" class="text-center p-4 rounded-md optimal-box-bg">
+                <p class="placeholder-text">Optimal mixture will be displayed here after sufficient iterations.</p>
+            </div>
+            <p id="stage3-info" class="info-text"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const NUM_POINTS = 100;
+        const NUM_CLUSTERS = 6;
+        const CLUSTER_COLORS = [
+            '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#facc15'
+        ];
+        const CONTAINER_SIZE = 192; // w-48 -> 12rem -> 192px
+        const POINT_SPREAD = 20;
+        const ITERATIONS = 4;
+        const CONFIGS_PER_ITERATION = 8;
+        const PRUNE_THRESHOLD_INITIAL = 40;
+        const PRUNE_THRESHOLD_INCREASE = 4;
+
+        // Animation Timing (milliseconds)
+        const EMBED_TIME = 1000;
+        const CLUSTER_TIME = 1000;
+        const GENERATE_CONFIG_TIME = 400;
+        const PREDICT_PRUNE_TIME = 800;
+        const PROXY_TRAIN_BASE_TIME = 800; // Slightly faster training sim
+        const PROXY_TRAIN_RANDOM_TIME = 400;
+        const UPDATE_PREDICTOR_TIME = 800;
+        const FINAL_DELAY = 1500;
+
+        // --- State Variables ---
+        let currentState = 'initial';
+        let currentIteration = 0;
+        let dataPoints = []; // Holds point elements in embedding space
+        let clusteredPoints = []; // Holds point elements in clustering space
+        let clusterCenters = [];
+        let mixtureConfigs = [];
+        let predictorPoints = [];
+        let pruneThreshold = PRUNE_THRESHOLD_INITIAL;
+        let isRunning = false;
+        let animationTimeoutId = null;
+
+        // --- DOM Elements ---
+        const startButton = document.getElementById('start-button');
+        const resetButton = document.getElementById('reset-button');
+        const statusText = document.getElementById('status-text');
+        const embeddingSpace = document.getElementById('embedding-space');
+        const clusteringSpace = document.getElementById('clustering-space');
+        const iterationCount = document.getElementById('iteration-count');
+        const mixtureConfigsDiv = document.getElementById('mixture-configs');
+        const proxyStatus = document.getElementById('proxy-status');
+        // const proxyScore = document.getElementById('proxy-score'); // Removed
+        const scoreDisplayList = document.getElementById('score-display-list'); // New list element
+        const predictorGraph = document.getElementById('predictor-graph');
+        const optimalMixtureDiv = document.getElementById('optimal-mixture');
+        const stage1Info = document.getElementById('stage1-info');
+        const stage2Info = document.getElementById('stage2-info');
+        const predictorInfo = document.getElementById('predictor-info');
+        const stage3Info = document.getElementById('stage3-info');
+
+
+        // --- Helper Functions ---
+        function getRandom(min, max) { return Math.random() * (max - min) + min; }
+
+        function createDataPoint(id, x, y, color = '#64748b') {
+            const point = document.createElement('div');
+            point.id = `point-${id}`;
+            point.className = 'data-point';
+            point.style.left = `${x}px`;
+            point.style.top = `${y}px`;
+            point.style.backgroundColor = color;
+            return point;
+        }
+
+        function createClusterCenters() {
+            clusterCenters = [];
+            // Clear only cluster markers if they were visible
+            // clusteringSpace.querySelectorAll('.cluster-center').forEach(el => el.remove());
+            for (let i = 0; i < NUM_CLUSTERS; i++) {
+                clusterCenters.push({
+                    x: getRandom(CONTAINER_SIZE * 0.15, CONTAINER_SIZE * 0.85),
+                    y: getRandom(CONTAINER_SIZE * 0.15, CONTAINER_SIZE * 0.85),
+                    color: CLUSTER_COLORS[i % CLUSTER_COLORS.length]
+                });
+            }
+        }
+
+        function generateMixtureConfigs(iteration) {
+            const newConfigs = [];
+            for (let i = 0; i < CONFIGS_PER_ITERATION; i++) {
+                let weights = [];
+                let sum = 0;
+                for (let j = 0; j < NUM_CLUSTERS; j++) { weights[j] = Math.random(); sum += weights[j]; }
+                weights = weights.map(w => parseFloat((w / sum).toFixed(2)));
+                let weightSum = weights.reduce((acc, w) => acc + w, 0);
+                if (weightSum !== 1.0) {
+                    weights[weights.length - 1] += (1.0 - weightSum);
+                    weights[weights.length - 1] = Math.max(0, parseFloat(weights[weights.length - 1].toFixed(2)));
+                     weightSum = weights.reduce((acc, w) => acc + w, 0);
+                     if (weightSum !== 1.0) {
+                         weights = weights.map(w => parseFloat((w / weightSum).toFixed(2)));
+                         weightSum = weights.reduce((acc, w) => acc + w, 0);
+                         if (weightSum !== 1.0) {
+                            weights[weights.length - 1] += (1.0 - weightSum);
+                            weights[weights.length - 1] = parseFloat(weights[weights.length - 1].toFixed(2));
+                         }
+                     }
+                }
+                newConfigs.push({ id: `iter${iteration}_cfg${i}`, weights: weights, score: null, predictedScore: null, status: 'new' });
+            }
+            mixtureConfigs = newConfigs;
+            displayMixtureConfigs();
+        }
+
+        function displayMixtureConfigs() {
+            mixtureConfigsDiv.innerHTML = '';
+            if (mixtureConfigs.length === 0) {
+                 mixtureConfigsDiv.innerHTML = '<p class="placeholder-text">No data mixture weights yet.</p>'; return;
+            }
+            mixtureConfigs.forEach(config => {
+                const configDiv = document.createElement('div');
+                configDiv.id = config.id;
+                configDiv.className = 'mixture-config';
+                if (config.status === 'pruned') configDiv.classList.add('pruned');
+
+                let label = `Mixture ${config.id.split('_')[1]}: `;
+                if (config.predictedScore !== null) label += ` (Pred: ${config.predictedScore.toFixed(1)}%)`;
+                if (config.score !== null) label += ` Score: ${config.score.toFixed(1)}%`;
+                else if (config.status === 'training') label += ' (Training...)';
+                else if (config.status === 'pruned') label += ' (Pruned)';
+                else if (config.status === 'kept') label += ' (Kept)';
+
+                const barContainer = document.createElement('div');
+                barContainer.className = 'mixture-bar-container';
+                config.weights.forEach((weight, index) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'mixture-bar';
+                    bar.style.width = `${weight * 100}%`;
+                    bar.style.backgroundColor = CLUSTER_COLORS[index % CLUSTER_COLORS.length];
+                    barContainer.appendChild(bar);
+                });
+                configDiv.innerHTML = `<p class="text-sm font-medium config-label-text">${label}</p>`;
+                configDiv.appendChild(barContainer);
+                mixtureConfigsDiv.appendChild(configDiv);
+            });
+        }
+
+        // NEW function to display scores separately
+        function displayScores() {
+            scoreDisplayList.innerHTML = ''; // Clear previous scores
+            const trainedConfigs = mixtureConfigs.filter(c => c.status === 'trained' || c.status === 'processed');
+
+            if (trainedConfigs.length === 0) {
+                scoreDisplayList.innerHTML = '<li class="placeholder-text text-center text-base">No scores yet for this iteration.</li>';
+                return;
+            }
+
+            trainedConfigs.sort((a, b) => b.score - a.score) // Sort by score descending
+                .forEach(config => {
+                const scoreItem = document.createElement('li');
+                const configNameSpan = document.createElement('span');
+                configNameSpan.textContent = `Mixture ${config.id.split('_')[1]}`;
+                configNameSpan.className = 'text-slate-300 text-base font-medium';
+
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = `${config.score.toFixed(1)}%`;
+                scoreSpan.className = 'score-text text-lg font-bold';
+
+                scoreItem.appendChild(configNameSpan);
+                scoreItem.appendChild(scoreSpan);
+                scoreDisplayList.appendChild(scoreItem);
+            });
+        }
+
+        function simulateProxyTraining(config) {
+            return new Promise(resolve => {
+                config.status = 'training';
+                displayMixtureConfigs(); // Update config list to show "Training..."
+                proxyStatus.textContent = `Training on Mixture ${config.id.split('_')[1]}...`; // Update status
+
+                const trainingTime = PROXY_TRAIN_BASE_TIME + Math.random() * PROXY_TRAIN_RANDOM_TIME;
+                const variance = config.weights.reduce((sum, w) => sum + Math.pow(w - (1/NUM_CLUSTERS), 2), 0) / NUM_CLUSTERS;
+                
+                // 使基础分数随迭代次数有更大的增长
+                // 第一轮基础分数为40，之后每轮增加7分
+                const baseScore = 40 + (currentIteration - 1) * 7;
+                
+                // 增加方差影响，使优质混合物得分更高
+                const varianceEffect = 15 * (1 - Math.sqrt(variance) * NUM_CLUSTERS);
+                
+                // 增加随机波动范围，使数据点更加多样化
+                const randomEffect = getRandom(-3, 4);
+                
+                const calculatedScore = baseScore + varianceEffect + randomEffect;
+
+                animationTimeoutId = setTimeout(() => {
+                    if (!isRunning) return;
+                    config.score = Math.max(35, Math.min(70, calculatedScore));
+                    config.status = 'trained';
+                    
+                    displayMixtureConfigs(); // Update config list with score
+                    resolve(config.score);
+                }, trainingTime);
+            });
+        }
+
+         function simulatePrediction(config) {
+             const avgScore = predictorPoints.length > 0 ? predictorPoints.reduce((sum, p) => sum + p.y, 0) / predictorPoints.length : PRUNE_THRESHOLD_INITIAL - 5;
+             config.predictedScore = avgScore + getRandom(-7, 7);
+             config.predictedScore = Math.max(30, Math.min(70, config.predictedScore));
+             return config.predictedScore;
+        }
+
+         function updatePredictorDataPoints() {
+            const dataPointsContainer = document.getElementById('predictor-data-points');
+            dataPointsContainer.innerHTML = '';
+            
+            // Display up to 25 points to avoid visual clutter
+            const displayPoints = predictorPoints.slice(-25);
+            
+            displayPoints.forEach((p, idx) => {
+                const pointDiv = document.createElement('div');
+                pointDiv.className = 'absolute w-2 h-2 rounded-full';
+                
+                // Create grid-based layout based on index and value
+                const xPos = 10 + (idx % 5) * 18; // Distribute 5 columns evenly
+                const yPos = 15 + Math.floor(idx / 5) * 18; // Distribute rows evenly
+                
+                pointDiv.style.left = `${xPos}%`;
+                pointDiv.style.top = `${yPos}%`;
+                pointDiv.style.backgroundColor = p.color || '#94a3b8';
+                
+                dataPointsContainer.appendChild(pointDiv);
+            });
+            
+            // Add animation effect for training process
+            if (predictorPoints.length > 0 && currentState === 'updating_predictor') {
+                const regressionIcon = document.getElementById('regression-icon');
+                regressionIcon.classList.add('animate-pulse');
+                setTimeout(() => {
+                    regressionIcon.classList.remove('animate-pulse');
+                }, 800);
+            }
+        }
+
+        function updatePredictorGraph(showPoints = true) {
+            predictorGraph.innerHTML = `
+                <div class="h-40 bg-slate-700 rounded-md relative overflow-hidden border border-slate-600">
+                    <div class="absolute left-0 bottom-0 w-full h-full flex items-center justify-center text-slate-500 text-xs">
+                        ${showPoints ? 'Performance Prediction Trend' : 'No data points yet'}
+                    </div>
+                    <div class="absolute left-4 top-2 text-xs text-slate-400">Score</div>
+                    <div class="absolute left-2 bottom-2 text-xs text-slate-400">Training Iterations</div>
+                </div>
+            `;
+            
+            const graph = predictorGraph.querySelector('div');
+            
+            // 添加水平网格线
+            for (let i = 1; i <= 4; i++) {
+                const gridLine = document.createElement('div');
+                gridLine.className = 'absolute w-full h-px bg-slate-600 opacity-50';
+                gridLine.style.bottom = `${i * 20}%`;
+                graph.appendChild(gridLine);
+            }
+            
+            // 添加垂直网格线
+            for (let i = 1; i <= 4; i++) {
+                const gridLine = document.createElement('div');
+                gridLine.className = 'absolute h-full w-px bg-slate-600 opacity-50';
+                gridLine.style.left = `${i * 20}%`;
+                graph.appendChild(gridLine);
+            }
+            
+            // 如果不需要显示点，就直接返回
+            if (!showPoints) {
+                predictorPoints = []; // 清空点数据
+                updatePredictorDataPoints(); // 更新左侧数据点显示
+                return;
+            }
+            
+            // 生成60个测试数据点 - 单调递增但有较大随机波动
+            const simulatedPoints = [];
+            const numPoints = 60; // 减少到60个点
+            
+            // 设置基本参数
+            const minScore = 35; // 最低分数
+            const maxScore = 68; // 最高分数
+            let currentScore = minScore;
+            
+            // 为增加variance，我们使用几个区间模拟不同的增长率
+            const phases = [
+                { endPoint: 0.3, growthMultiplier: 0.6, maxVariance: 1.0 },   // 初始阶段，增长较慢，波动较小
+                { endPoint: 0.6, growthMultiplier: 1.2, maxVariance: 1.8 },   // 中期阶段，增长较快，波动中等
+                { endPoint: 0.8, growthMultiplier: 0.8, maxVariance: 2.5 },   // 瓶颈阶段，增长放缓，波动大
+                { endPoint: 1.0, growthMultiplier: 1.5, maxVariance: 1.2 }    // 最终阶段，增长加速，波动中等
+            ];
+            
+            for (let i = 0; i < numPoints; i++) {
+                // 计算当前进度和所在阶段
+                const progress = i / (numPoints - 1); // 0到1之间的进度
+                
+                // 确定当前所在阶段
+                let currentPhase = phases[0];
+                for (const phase of phases) {
+                    if (progress <= phase.endPoint) {
+                        currentPhase = phase;
+                        break;
+                    }
+                }
+                
+                // 根据当前阶段计算分数增量和随机变化
+                const baseIncrease = ((maxScore - minScore) / numPoints) * currentPhase.growthMultiplier;
+                const randomVariation = (Math.random() * 2 - 0.8) * currentPhase.maxVariance; // 有正有负的随机变化
+                
+                // 计算新分数，确保至少比前一个略高（保持单调递增）
+                let newScore = currentScore + baseIncrease + randomVariation;
+                
+                // 确保单调递增的最小增量
+                newScore = Math.max(currentScore + 0.05, newScore);
+                
+                // 确保不超过上限
+                currentScore = Math.min(newScore, maxScore);
+                
+                // 选择随机颜色，但让相邻点有时颜色相似，增加视觉连贯性
+                const colorIndex = (Math.random() > 0.7) 
+                    ? Math.floor(Math.random() * CLUSTER_COLORS.length) 
+                    : (simulatedPoints.length > 0 
+                        ? CLUSTER_COLORS.indexOf(simulatedPoints[simulatedPoints.length-1].color)
+                        : Math.floor(Math.random() * CLUSTER_COLORS.length));
+                
+                simulatedPoints.push({
+                    x: i,
+                    y: currentScore,
+                    color: CLUSTER_COLORS[colorIndex >= 0 ? colorIndex : 0]
+                });
+            }
+            
+            // 绘制所有点，随机调整大小和不透明度
+            simulatedPoints.forEach((p, index) => {
+                const pointDiv = document.createElement('div');
+                pointDiv.className = 'predictor-point';
+                
+                // 标准化点位置到图表空间
+                const yPos = 100 - ((p.y - 30) / 40 * 100); // 分数范围30-70标准化到0-100%
+                const xPos = (index / (simulatedPoints.length - 1)) * 100;
+                
+                pointDiv.style.bottom = `${100 - yPos}%`;
+                pointDiv.style.left = `${xPos}%`;
+                pointDiv.style.backgroundColor = p.color;
+                
+                // 大幅度随机调整点的大小
+                const pointSize = 3 + Math.random() * 4; // 3px到7px的范围
+                pointDiv.style.width = `${pointSize}px`;
+                pointDiv.style.height = `${pointSize}px`;
+                
+                // 随机调整不透明度
+                pointDiv.style.opacity = 0.4 + Math.random() * 0.6; // 0.4到1.0的范围
+                
+                graph.appendChild(pointDiv);
+            });
+            
+            // 添加趋势指示器 - 显示上升趋势
+            const trendIndicator = document.createElement('div');
+            trendIndicator.className = 'absolute w-4 h-4 flex items-center justify-center rounded-full';
+            trendIndicator.style.right = '10px';
+            trendIndicator.style.top = '10px';
+            trendIndicator.style.backgroundColor = 'rgba(0,0,0,0.4)';
+            trendIndicator.innerHTML = '↗';
+            trendIndicator.style.color = '#4ade80';
+            graph.appendChild(trendIndicator);
+            
+            // 设置预测器点数据用于显示在左侧区域
+            predictorPoints = simulatedPoints.slice(-20); // 只保留最新的20个点
+            updatePredictorDataPoints();
+        }
+
+        function displayOptimalMixture() {
+            optimalMixtureDiv.innerHTML = '';
+            const bestConfig = mixtureConfigs.filter(c => c.score !== null).sort((a, b) => b.score - a.score)[0];
+
+            if (bestConfig) {
+                const title = document.createElement('p');
+                title.className = 'text-lg font-semibold optimal-text-color mb-2';
+                title.textContent = `Optimal Mixture Estimated (Based on Mixture ${bestConfig.id.split('_')[1]}): Score ${bestConfig.score.toFixed(1)}%`;
+                const barContainer = document.createElement('div');
+                barContainer.className = 'mixture-bar-container h-8';
+                 bestConfig.weights.forEach((weight, index) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'mixture-bar flex items-center justify-center text-xs font-medium text-slate-900';
+                    bar.style.width = `${weight * 100}%`;
+                    bar.style.backgroundColor = CLUSTER_COLORS[index % CLUSTER_COLORS.length];
+                    bar.textContent = `${(weight * 100).toFixed(0)}%`;
+                    barContainer.appendChild(bar);
+                });
+                 optimalMixtureDiv.appendChild(title);
+                 optimalMixtureDiv.appendChild(barContainer);
+            } else {
+                 optimalMixtureDiv.innerHTML = '<p class="placeholder-text">Could not determine an optimal mixture from the simulation.</p>';
+            }
+        }
+
+
+        // --- State Machine Logic (Automatic) ---
+        async function runVisualization() {
+            if (!isRunning) return;
+
+            switch (currentState) {
+                case 'initial':
+                    statusText.textContent = "Stage 1: Embedding Texts...";
+                    stage1Info.textContent = "Representing raw text data as points in a semantic space.";
+                    embeddingSpace.innerHTML = `<p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Embedding Space</p>`;
+                    clusteringSpace.innerHTML = `<p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Clustering Space</p>`;
+                    dataPoints = [];
+                    clusteredPoints = []; // Clear clustered points array too
+                    
+                    // 清空预测器数据
+                    predictorPoints = [];
+                    
+                    // 不显示数据点的预测器图表
+                    updatePredictorGraph(false);
+                    
+                    for (let i = 0; i < NUM_POINTS; i++) {
+                        const x = getRandom(10, CONTAINER_SIZE - 20);
+                        const y = getRandom(10, CONTAINER_SIZE - 20);
+                        const point = createDataPoint(i, x, y); // Create points directly in embedding space
+                        embeddingSpace.appendChild(point);
+                        dataPoints.push({element: point, initialX: x, initialY: y}); // Store element and initial position
+                    }
+                    currentState = 'embedding'; // Directly move to clustering step after setup
+                    break;
+
+                case 'embedding': // This state now represents the clustering animation
+                    statusText.textContent = "Stage 1: Clustering Embeddings...";
+                    stage1Info.textContent = "Grouping similar data points together. Original embeddings remain (faded).";
+                    createClusterCenters();
+                    clusteringSpace.innerHTML = `<p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Clustering Space</p>`; // Clear old points if any
+                    clusteredPoints = []; // Reset clustered points array
+
+                    dataPoints.forEach((pointData, i) => {
+                        // Fade the original point
+                        pointData.element.classList.add('faded');
+
+                        // Create a clone to move to the clustering space
+                        const clone = pointData.element.cloneNode(true);
+                        clone.id = `clone-${i}`;
+                        clone.classList.remove('faded'); // Clone is not faded
+                        clone.style.left = pointData.initialX + 'px'; // Start clone at original position
+                        clone.style.top = pointData.initialY + 'px';
+                        clone.style.opacity = '0'; // Start invisible
+
+                        clusteringSpace.appendChild(clone); // Add clone to clustering DOM
+                        clusteredPoints.push(clone); // Add clone element to array
+
+                        const clusterIndex = i % NUM_CLUSTERS;
+                        const center = clusterCenters[clusterIndex];
+                        const targetX = center.x + getRandom(-POINT_SPREAD, POINT_SPREAD);
+                        const targetY = center.y + getRandom(-POINT_SPREAD, POINT_SPREAD);
+
+                        // Animate the clone
+                        requestAnimationFrame(() => { // Ensure clone is added before animating
+                             clone.style.opacity = '1';
+                             clone.style.left = `${Math.max(5, Math.min(CONTAINER_SIZE - 15, targetX))}px`;
+                             clone.style.top = `${Math.max(5, Math.min(CONTAINER_SIZE - 15, targetY))}px`;
+                             clone.style.backgroundColor = center.color;
+                        });
+                    });
+
+                    currentState = 'clustering';
+                    await new Promise(resolve => animationTimeoutId = setTimeout(resolve, CLUSTER_TIME));
+                    break;
+
+                 case 'clustering':
+                    currentIteration++;
+                    if (currentIteration > ITERATIONS) {
+                         currentState = 'final';
+                    } else {
+                        statusText.textContent = `Stage 2: Iteration ${currentIteration} - Generating Mixtures...`;
+                        stage1Info.textContent = "Clusters formed. These define the components for data mixtures.";
+                        stage2Info.textContent = `Generating ${CONFIGS_PER_ITERATION} new potential data mixture configurations for evaluation.`;
+                        predictorInfo.textContent = "";
+                        iterationCount.textContent = currentIteration;
+                        proxyStatus.textContent = 'Awaiting mixture training...';
+                        scoreDisplayList.innerHTML = '<li class="placeholder-text text-center">No scores yet for this iteration.</li>'; // Clear scores
+                        generateMixtureConfigs(currentIteration);
+                        currentState = 'generating_configs';
+                        await new Promise(resolve => animationTimeoutId = setTimeout(resolve, GENERATE_CONFIG_TIME));
+                    }
+                    break;
+
+                case 'generating_configs':
+                     if (currentIteration === 1) {
+                        statusText.textContent = `Stage 2: Iteration ${currentIteration} - Training Proxy Models...`;
+                        stage2Info.textContent = `Training smaller proxy models on each generated mixture to get performance scores.`;
+                        proxyStatus.textContent = `Training ${mixtureConfigs.length} configurations...`;
+                        currentState = 'training_proxy'; // Set state before async calls
+                        const trainingPromises = mixtureConfigs.filter(c => c.status === 'new').map(simulateProxyTraining);
+                        await Promise.all(trainingPromises);
+                        if (!isRunning) return;
+                        proxyStatus.textContent = `Finished training for Iteration ${currentIteration}.`;
+                        displayScores(); // Display scores after all training is done
+                        currentState = 'updating_predictor';
+                    } else {
+                        statusText.textContent = `Stage 2: Iteration ${currentIteration} - Predicting & Pruning...`;
+                        stage2Info.textContent = `Using the predictor to estimate performance and prune unpromising mixtures (predicted score < ${pruneThreshold.toFixed(1)}%).`;
+                        predictorInfo.textContent = `Estimating scores...`;
+                        mixtureConfigs.filter(c => c.status === 'new').forEach(config => {
+                             simulatePrediction(config);
+                             if (config.predictedScore < pruneThreshold) config.status = 'pruned';
+                             else config.status = 'kept';
+                         });
+                        displayMixtureConfigs();
+                        pruneThreshold += PRUNE_THRESHOLD_INCREASE;
+                        currentState = 'pruning';
+                        await new Promise(resolve => animationTimeoutId = setTimeout(resolve, PREDICT_PRUNE_TIME));
+                     }
+                    break;
+
+                case 'pruning':
+                    statusText.textContent = `Stage 2: Iteration ${currentIteration} - Training Proxy Models...`;
+                    const keptConfigs = mixtureConfigs.filter(c => c.status === 'kept');
+                    stage2Info.textContent = `Training proxy models only on the ${keptConfigs.length} promising (kept) mixtures.`;
+                    predictorInfo.textContent = `Predictor used to select candidates.`;
+                    currentState = 'training_proxy'; // Set state before async calls
+                    if (keptConfigs.length > 0) {
+                        proxyStatus.textContent = `Training ${keptConfigs.length} configurations...`;
+                        const trainingPromises = keptConfigs.map(simulateProxyTraining);
+                        await Promise.all(trainingPromises);
+                         if (!isRunning) return;
+                         proxyStatus.textContent = `Finished training for Iteration ${currentIteration}.`;
+                         displayScores(); // Display scores after training
+                         currentState = 'updating_predictor';
+                    } else {
+                        proxyStatus.textContent = `No configurations kept for training.`;
+                        scoreDisplayList.innerHTML = '<li class="placeholder-text text-center">No configurations trained this iteration.</li>';
+                        currentState = 'updating_predictor';
+                        await new Promise(resolve => animationTimeoutId = setTimeout(resolve, UPDATE_PREDICTOR_TIME));
+                    }
+                    break;
+
+                 case 'updating_predictor':
+                     statusText.textContent = `Stage 2: Iteration ${currentIteration} - Updating Predictor...`;
+                     stage2Info.textContent = `Finished evaluating mixtures for Iteration ${currentIteration}.`;
+                     predictorInfo.textContent = `Training predictor (regression model): Updating model with new (mixture weights, score) data points. This model will learn to predict performance based on mixture weights.`;
+                     
+                     // 动画效果
+                     const regressionIcon = document.getElementById('regression-icon');
+                     regressionIcon.classList.add('animate-pulse');
+                     setTimeout(() => {
+                         regressionIcon.classList.remove('animate-pulse');
+                     }, 500);
+                     
+                     // 生成带数据点的图表
+                     updatePredictorGraph(true);
+                     
+                     // 直接标记所有配置为已处理
+                     mixtureConfigs.filter(c => c.status === 'trained').forEach(config => {
+                         config.status = 'processed';
+                     });
+                     
+                     currentState = 'clustering'; // Loop back
+                     await new Promise(resolve => animationTimeoutId = setTimeout(resolve, UPDATE_PREDICTOR_TIME));
+                     break;
+
+                case 'final':
+                    statusText.textContent = "Finished Bootstrapping. Determining Optimal Mixture.";
+                    stage3Info.textContent = "Using the final trained predictor to estimate the performance of many potential mixtures and identify the one predicted to yield the best score.";
+                    displayOptimalMixture();
+                    resetButton.disabled = false;
+                    startButton.disabled = false;
+                    isRunning = false;
+                    return; // End
+            }
+
+            if (isRunning) runVisualization(); // Call next step automatically
+        }
+
+        function resetVisualization() {
+            isRunning = false;
+            if (animationTimeoutId) { clearTimeout(animationTimeoutId); animationTimeoutId = null; }
+
+            currentState = 'initial';
+            currentIteration = 0;
+            dataPoints = [];
+            clusteredPoints = [];
+            clusterCenters = [];
+            mixtureConfigs = [];
+            predictorPoints = [];
+            pruneThreshold = PRUNE_THRESHOLD_INITIAL;
+
+            embeddingSpace.innerHTML = `<p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Embedding Space</p>`;
+            clusteringSpace.innerHTML = `<p class="absolute inset-0 flex items-center justify-center placeholder-text z-0">Clustering Space</p>`;
+            mixtureConfigsDiv.innerHTML = '<p class="placeholder-text">Configurations will appear here.</p>';
+            proxyStatus.textContent = 'Awaiting mixture training...';
+            scoreDisplayList.innerHTML = ''; // Clear score list
+            
+            // 重置predictor图表但不显示数据点
+            updatePredictorGraph(false);
+            
+            optimalMixtureDiv.innerHTML = '<p class="placeholder-text">Optimal mixture will be displayed here after sufficient iterations.</p>';
+            statusText.textContent = "Press Start to begin the visualization.";
+            iterationCount.textContent = '0';
+            stage1Info.textContent = "";
+            stage2Info.textContent = "";
+            predictorInfo.textContent = "";
+            stage3Info.textContent = "";
+
+            const dataPointsContainer = document.getElementById('predictor-data-points');
+            if (dataPointsContainer) dataPointsContainer.innerHTML = '';
+
+            startButton.disabled = false;
+            resetButton.disabled = false;
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', () => {
+            if (!isRunning) {
+                resetVisualization();
+                isRunning = true;
+                startButton.disabled = true;
+                resetButton.disabled = false;
+                runVisualization();
+            }
+        });
+        resetButton.addEventListener('click', resetVisualization);
+
+        // --- Initial Setup ---
+        resetVisualization();
+
+    </script>
+
+</body>
+</html>
