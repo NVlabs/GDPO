@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-        🤗 <a href="">Hugging Face Page</a>&nbsp&nbsp | &nbsp&nbsp 📄 <a href="">Paper</a> | &nbsp&nbsp 📜 <a href="https://nbasyl.github.io/GDPO_webpage/">Page</a> &nbsp
+        🤗 <a href="">Hugging Face Page</a>&nbsp&nbsp | &nbsp&nbsp 📄 <a href="">Paper</a> | &nbsp&nbsp 📜 <a href="https://nvlabs.github.io/GDPO/">Page</a> &nbsp
 </p>
 
 <h1 align="center"> 
