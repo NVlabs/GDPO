@@ -47,4 +47,4 @@ FYI. training Qwen2.5-1.5B-Instruct on a single Node with 8xA100 takes about an 
 
 
 ## GDPO Implementation details
-Please see [line 161](https://github.com/NVlabs/GDPO/blob/8bc7a4f5107eedb3e0ca653c53bd4bb8b71460c3/verl-GDPO/verl/trainer/ppo/ray_trainer.py#L175) in verl-GDPO/verl/trainer/ppo/ray_trainer.py
+Please see [line 175](https://github.com/NVlabs/GDPO/blob/8bc7a4f5107eedb3e0ca653c53bd4bb8b71460c3/verl-GDPO/verl/trainer/ppo/ray_trainer.py#L175) in verl-GDPO/verl/trainer/ppo/ray_trainer.py
