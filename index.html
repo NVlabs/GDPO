@@ -481,8 +481,8 @@ function OptanonWrapper() {
             </li>
             <li>
               For example, reward combination of (0, 2) should produce a stronger learning
-signal than (0, 1) because a total reward of 2 indicates simultaneous satisfaction of two rewards, whereas a
-reward of 1 corresponds to achieving only one. Thus, when the other one rollout only receives zero reward,
+signal than (0, 1) because a total reward of 2 indicates simultaneous satisfaction of rewards 𝑟1 and 𝑟2, whereas a
+reward of 1 corresponds to achieving only 𝑟1 or 𝑟2. Thus, when the other one rollout only receives zero reward,
 (0, 2) should yield a larger relative advantage than (0, 1). This limitation can also introduce risks of training
 instability due to inaccurate advantage estimates. 
             </li>
