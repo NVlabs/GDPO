@@ -526,6 +526,27 @@ class GRPOTrainer(Trainer):
         self.scale_rewards = args.scale_rewards
         self.mask_truncated_completions = args.mask_truncated_completions
 
+
+        # SA-GDPO specific args
+        self.apply_sa_gdpo = getattr(args, "apply_sa_gdpo", False)
+        self.sa_gdpo_gamma = getattr(args, "sa_gdpo_gamma", 1.0)
+
+        if self.apply_sa_gdpo:
+            print("Applying SA-GDPO with gamma =", self.sa_gdpo_gamma)
+            if not hasattr(args, "reward_mins") or not hasattr(args, "reward_maxs"):
+                raise ValueError("SA-GDPO requires reward_mins and reward_maxs.")
+
+            if len(args.reward_mins) != len(self.reward_funcs):
+                raise ValueError("Length of reward_mins must match number of reward functions.")
+            if len(args.reward_maxs) != len(self.reward_funcs):
+                raise ValueError("Length of reward_maxs must match number of reward functions.")
+
+            self.reward_mins = torch.tensor(args.reward_mins, dtype=torch.float32)
+            self.reward_maxs = torch.tensor(args.reward_maxs, dtype=torch.float32)
+
+
+
+
         # Datasets
         self.shuffle_dataset = args.shuffle_dataset
 
@@ -1220,7 +1241,7 @@ class GRPOTrainer(Trainer):
 
         ### only apply gdpo when having more than one reward
         if self.apply_gdpo and len(self.reward_weights) > 1:
-            print(f"Apply GDPO for multi-reward")
+            # print(f"Apply GDPO for multi-reward")
 
             ## Make sure every reward contain no nan value
             rewards_per_func_filter = torch.nan_to_num(rewards_per_func)
@@ -1239,15 +1260,32 @@ class GRPOTrainer(Trainer):
                 all_reward_advantage.append(each_reward_advantage)
 
             combined_reward_advantage = torch.stack(all_reward_advantage, dim=1)
-            pre_bn_advantages = (combined_reward_advantage * self.reward_weights.to(device).unsqueeze(0)).nansum(dim=1)
+            if self.apply_sa_gdpo:
+                print(f"Apply SAGDPO for multi-reward")
+                reward_mins = self.reward_mins.to(device)
+                reward_maxs = self.reward_maxs.to(device)
+                reward_ranges = (reward_maxs - reward_mins).clamp_min(1e-4)
+
+                reward_means = rewards_per_func_filter.mean(dim=0)
+                saturation = ((reward_means - reward_mins) / reward_ranges).clamp(0.0, 1.0)
+
+                dynamic_reward_weights = self.reward_weights.to(device) * (
+                    (1.0 - saturation) ** self.sa_gdpo_gamma
+                )
+
+                pre_bn_advantages = (
+                    combined_reward_advantage * dynamic_reward_weights.unsqueeze(0)
+                ).nansum(dim=1)
+            else:
+                pre_bn_advantages = (
+                    combined_reward_advantage * self.reward_weights.to(device).unsqueeze(0)
+                ).nansum(dim=1)
 
             ## compute batch-wise mean and std
             bn_advantages_mean = pre_bn_advantages.mean()
             bn_advantages_std = pre_bn_advantages.std()
 
-            advantages = (pre_bn_advantages - bn_advantages_mean) / (bn_advantages_std + 1e-4)
-
-
+            advantages = (pre_bn_advantages - bn_advantages_mean) / (bn_advantages_std + 1e-4)          
 
         else:
 

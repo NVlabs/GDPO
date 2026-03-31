@@ -445,6 +445,31 @@ class GRPOConfig(TrainingArguments):
             "help": "Whether to apply GDPO: Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization"
         },
     )  
+    apply_sa_gdpo: bool = field(
+        default=False,
+        metadata={
+            "help": "Whether to apply SA-GDPO: Self-Adaptive Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization"
+        },
+    )  
+    sa_gdpo_gamma: float = field(
+        default=1.0,
+        metadata={
+            "help": "The gamma parameter for SA-GDPO: Self-Adaptive Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization"
+        },
+    )  
+    reward_mins: Optional[list[float]] = field(
+        default=None,
+        metadata={
+            "help": "The reward_mins parameter for SA-GDPO: Self-Adaptive Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization"
+        },
+    ) 
+    reward_maxs: Optional[list[float]] = field(
+        default=None,
+        metadata={
+            "help": "The reward_mins parameter for SA-GDPO: Self-Adaptive Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization"
+        },
+    ) 
+    
     scale_rewards: bool = field(
         default=True,
         metadata={
