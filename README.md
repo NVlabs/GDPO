@@ -1,4 +1,4 @@
-# GDPO: Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization
+# GDPO: Group reward-Decoupled Normalization Policy Optimization for Multi-reward RL Optimization [ICML2026]
 <h1 align="center"> 
     <img src="./imgs/gdpo.png" alt="Alt text" style="width: 65%;">
 </h1>
@@ -23,7 +23,8 @@ GDPO is now supported in the following RL-training libraries:
 - **[TRL](https://github.com/huggingface/trl)** 🔥🔥 [Example here](https://github.com/huggingface/trl/blob/28fc3f2c336bb7f734aab49c1ad073e152dccf61/docs/source/paper_index.md?plain=1#L520)!!
 - **[Ms-swift](https://github.com/modelscope/ms-swift)** 🔥🔥 [Example here](https://github.com/modelscope/ms-swift/blob/dc6ab899db82a87a5d4856851b342516d6dd0f42/swift/rlhf_trainers/args_mixin.py#L247)!!
 - **[Axolotl](https://github.com/axolotl-ai-cloud/axolotl)** 🔥🔥 [Example here](https://docs.axolotl.ai/docs/rlhf.html#gdpo)!!
-- **[NeMo RL](https://github.com/NVIDIA-NeMo/RL)** 🔥🔥 Coming in v0.6!!
+- **[NeMo RL](https://github.com/NVIDIA-NeMo/RL)** 🔥🔥 [Example here](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/gdpo_math_1B.yaml)!!
+- **[Verl](https://github.com/verl-project/verl)** 🔥🔥 [Example here](https://github.com/verl-project/verl/tree/main/examples/gdpo_trainer)!!
 
 ## 🚀 Run GDPO with verl to improve two-reward RL training for tool calling.
 <h1 align="center"> 
